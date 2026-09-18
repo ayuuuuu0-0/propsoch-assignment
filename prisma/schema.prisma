@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// TABLE 1: users
+// Stores account info. Password is hashed.
+// Currency = the user's preferred display currency.
+// ─────────────────────────────────────────────
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // bcrypt hashed, never plain text
+  currency  String   @default("USD")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  expensesCreated Expense[]       @relation("ExpenseCreator")
+  expenseMembers  ExpenseMember[]
+
+  @@map("users") // actual table name in postgres
+}
+
+// ─────────────────────────────────────────────
+// TABLE 2: expenses
+// One expense = one bill (e.g. "Dinner - $90")
+// created_by = the person who PAID the bill
+// ─────────────────────────────────────────────
+model Expense {
+  id        String   @id @default(uuid())
+  name      String   // e.g. "Dinner at Taj"
+  value     Decimal  @db.Decimal(10, 2) // e.g. 90.00
+  currency  String   // e.g. "USD", "INR"
+  date      DateTime // when the expense happened
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Who paid this bill
+  createdById String @map("created_by")
+  createdBy   User   @relation("ExpenseCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  // Who is splitting this bill
+  members ExpenseMember[]
+
+  @@map("expenses")
+}
+
+// ─────────────────────────────────────────────
+// TABLE 3: expense_members
+// The JOIN table. Answers: "Who is in this expense, and how much do they owe?"
+// e.g. Bob owes $30 for the $90 Dinner expense
+// ─────────────────────────────────────────────
+model ExpenseMember {
+  id        String  @id @default(uuid())
+  share     Decimal @db.Decimal(10, 2) // how much THIS person owes for this expense
+
+  // Which expense
+  expenseId String  @map("expense_id")
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  // Which user
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseId, userId]) // same person can't be added twice to same expense
+  @@map("expense_members")
+}
