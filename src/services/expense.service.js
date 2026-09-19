@@ -89,7 +89,7 @@ const update = async (id, userId, body) => {
       ...(date && { date: new Date(date) }),
       ...(members && {
         members: {
-          deleteMany: {}, // drop old splits, re-create from request
+          deleteMany: {}, // wipe old splits and recreate from request
           create: members.map((m) => ({ userId: m.userId, share: m.share })),
         },
       }),

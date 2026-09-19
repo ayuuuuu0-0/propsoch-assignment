@@ -1,7 +1,7 @@
 const prisma = require('../config/prisma');
 
-// net balance per user-pair, computed from all expenses
-// positive amount = they owe me, negative = i owe them
+// builds a net balance map across all expenses the user is part of
+// positive amount means they owe me, negative means i owe them
 const calculate = async (userId) => {
   const expenses = await prisma.expense.findMany({
     where: {
@@ -17,7 +17,7 @@ const calculate = async (userId) => {
 
   for (const expense of expenses) {
     if (expense.createdById === userId) {
-      // i paid — each member owes me their share
+      // i paid so each member owes me their share
       for (const member of expense.members) {
         if (member.userId === userId) continue;
         const id = member.userId;
@@ -25,7 +25,7 @@ const calculate = async (userId) => {
         map[id].amount += Number(member.share);
       }
     } else {
-      // someone else paid — i owe the creator my share
+      // someone else paid so i owe the creator my share
       const myEntry = expense.members.find((m) => m.userId === userId);
       if (!myEntry) continue;
       const id = expense.createdById;
