@@ -22,7 +22,13 @@ DATABASE_URL="postgresql://postgres:password@localhost:5432/splitwise"
 npx prisma migrate dev --name init
 ```
 
-4. Start server:
+4. Create test users:
+
+```bash
+node createTestUsers.js
+```
+
+5. Start server:
 
 ```bash
 npm run dev
