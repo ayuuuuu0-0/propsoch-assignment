@@ -1,8 +1,5 @@
-// src/middleware/auth.js
-// ──────────────────────────────────────────────────────────────
 // We just read user_id from the request header "x-user-id"
 // and attach it to req.userId for controllers to use.
-// ──────────────────────────────────────────────────────────────
 
 const authenticate = (req, res, next) => {
   const userId = req.headers["x-user-id"];
