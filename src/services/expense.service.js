@@ -20,14 +20,25 @@ const create = async (userId, body) => {
   });
 };
 
+// translates query params into a prisma date range filter
 const buildDateFilter = (query) => {
   const now = new Date();
+
   if (query.filter === 'current_month')
-    return { gte: new Date(now.getFullYear(), now.getMonth(), 1), lte: new Date(now.getFullYear(), now.getMonth() + 1, 0) };
+    return {
+      gte: new Date(now.getFullYear(), now.getMonth(), 1),
+      lte: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+    };
+
   if (query.filter === 'last_month')
-    return { gte: new Date(now.getFullYear(), now.getMonth() - 1, 1), lte: new Date(now.getFullYear(), now.getMonth(), 0) };
+    return {
+      gte: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+      lte: new Date(now.getFullYear(), now.getMonth(), 0),
+    };
+
   if (query.filter === 'date_range' && query.from && query.to)
     return { gte: new Date(query.from), lte: new Date(query.to) };
+
   return undefined;
 };
 
@@ -36,6 +47,7 @@ const getAll = async (userId, query) => {
 
   return await prisma.expense.findMany({
     where: {
+      // show expenses where user is the payer or a split member
       OR: [{ createdById: userId }, { members: { some: { userId } } }],
       ...(dateFilter && { date: dateFilter }),
     },
@@ -49,7 +61,10 @@ const getAll = async (userId, query) => {
 
 const getById = async (id, userId) => {
   const expense = await prisma.expense.findFirst({
-    where: { id, OR: [{ createdById: userId }, { members: { some: { userId } } }] },
+    where: {
+      id,
+      OR: [{ createdById: userId }, { members: { some: { userId } } }],
+    },
     include: {
       createdBy: { select: { id: true, email: true } },
       members: { include: { user: { select: { id: true, email: true } } } },
@@ -74,7 +89,7 @@ const update = async (id, userId, body) => {
       ...(date && { date: new Date(date) }),
       ...(members && {
         members: {
-          deleteMany: {}, // wipe old, re-insert
+          deleteMany: {}, // drop old splits, re-create from request
           create: members.map((m) => ({ userId: m.userId, share: m.share })),
         },
       }),

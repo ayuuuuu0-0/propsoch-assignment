@@ -1,14 +1,7 @@
 const prisma = require('../config/prisma');
 
-/*
-  How balance works:
-  - If I paid for an expense, everyone else in that expense owes me their share
-  - If I'm a member of someone else's expense, I owe them my share
-
-  We loop through all expenses involving the user and build a net balance per person.
-  Positive = they owe me, Negative = I owe them
-*/
-
+// net balance per user-pair, computed from all expenses
+// positive amount = they owe me, negative = i owe them
 const calculate = async (userId) => {
   const expenses = await prisma.expense.findMany({
     where: {
@@ -20,30 +13,28 @@ const calculate = async (userId) => {
     },
   });
 
-  // key = other user's id, value = { user, net amount }
-  const balanceMap = {};
+  const map = {};
 
   for (const expense of expenses) {
     if (expense.createdById === userId) {
-      // I paid — each member owes me their share
+      // i paid — each member owes me their share
       for (const member of expense.members) {
         if (member.userId === userId) continue;
         const id = member.userId;
-        if (!balanceMap[id]) balanceMap[id] = { user: member.user, amount: 0 };
-        balanceMap[id].amount += Number(member.share);
+        if (!map[id]) map[id] = { user: member.user, amount: 0 };
+        map[id].amount += Number(member.share);
       }
     } else {
-      // Someone else paid — I owe the creator my share
+      // someone else paid — i owe the creator my share
       const myEntry = expense.members.find((m) => m.userId === userId);
       if (!myEntry) continue;
       const id = expense.createdById;
-      if (!balanceMap[id]) balanceMap[id] = { user: expense.createdBy, amount: 0 };
-      balanceMap[id].amount -= Number(myEntry.share);
+      if (!map[id]) map[id] = { user: expense.createdBy, amount: 0 };
+      map[id].amount -= Number(myEntry.share);
     }
   }
 
-  // convert map to array and label direction
-  return Object.values(balanceMap).map((b) => ({
+  return Object.values(map).map((b) => ({
     user: b.user,
     amount: Math.abs(b.amount).toFixed(2),
     direction: b.amount > 0 ? 'owes_me' : 'i_owe',

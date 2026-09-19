@@ -10,14 +10,14 @@ const getById = async (id) => {
 };
 
 const update = async (id, data) => {
-  const user = await prisma.user.update({
+  return await prisma.user.update({
     where: { id },
     data,
     select: { id: true, email: true, currency: true, updatedAt: true },
   });
-  return user;
 };
 
+// cascade delete in schema handles related expenses + members
 const remove = async (id) => {
   await prisma.user.delete({ where: { id } });
 };
